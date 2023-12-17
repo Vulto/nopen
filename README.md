@@ -1,7 +1,7 @@
-# MimeLauncher (nopen)
+# NOPEN
 MimeLauncher, also known as nopen, is a minimalistic utility designed to launch files based on their MIME types. The program utilizes the magic library to identify the MIME type of a given file and then matches it with a predefined application in a user-customizable configuration file.
 
-## Prerequisites
+## Requirements
 C compiler
 magic library
 
