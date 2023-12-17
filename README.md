@@ -7,7 +7,7 @@ magic library
 
 ## Installation
 
-git clone https://github.com/your-username/nopen.git
+git clone https://github.com/Vulto/nopen.git
 cd nopen
 
 ./c will build the executable
