@@ -1,100 +1,68 @@
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <magic.h>
 #include <unistd.h>
-#include "arg.h"
-#include "util.h"
-     
-struct rule {
-	char *regex; /* Regex to match on filename */
-  	char *file;
-  	char *argv[NR_ARGS];
-  	regex_t regcomp;
-  };
-  
-  #include "config.h"
-   
-  char *argv0;
-  
-  int
-  run(struct rule *rule, char *arg)
-  {
-  	char *argv[NR_ARGS];
-  	int i;
-  
-  	for (i = 0; rule->argv[i]; i++) {
-  		if (strcmp(rule->argv[i], "{}") == 0) {
-  			argv[i] = arg;
-  			continue;
-  		}
-  		argv[i] = rule->argv[i];
-  	}
-  	argv[i] = NULL;
-  	return spawnvp(NULL, rule->file, argv);
-  }
-  
-  struct rule *
-  matchrule(char *file)
-  {
-  	int i;
-  
-  	for (i = 0; i < LEN(rules); i++) {
-  		if (regexec(&rules[i].regcomp, file, 0, NULL, 0) == 0)
-  			return &rules[i];
-  	}
-  	return NULL;
-  }
-  
-  void
-  parserules(void)
-  {
-  	char errbuf[256];
-  	int i, r;
-  
-  	for (i = 0; i < LEN(rules); i++) {
-  		r = regcomp(&rules[i].regcomp, rules[i].regex,
-  			    REG_NOSUB | REG_EXTENDED | REG_ICASE);
-  		if (r != 0) {
-  			regerror(r, &rules[i].regcomp, errbuf, sizeof(errbuf));
-  			fprintf(stderr, "invalid regex rules[%d]: %s: %s\n",
-  			        i, rules[i].regex, errbuf);
-  			exit(1);
-  		}
-  	}
-  }
-  
-  void
-  usage(void)
-  {
-  	fprintf(stderr, "usage: %s file...\n", argv0);
-  	exit(1);
-  }
 
-  int
-  main(int argc, char *argv[])
-  {
-  	int r;
-  
-  	ARGBEGIN {
-  	default:
-  		usage();
-  	} ARGEND
-  
-  	if (argc == 0)
-  		usage();
-  
-  	r = 0;
-  	parserules();
-  	for (; argv[0] != NULL; argv++) {
-  		struct rule *rule;
-  
-  		if ((rule = matchrule(argv[0])) == NULL)
-  			continue;
-  		if (run(rule, argv[0]) == -1)
-  			r = 1;
-  	}
-  	return r;
-   }
+#include "config.h"
+
+//TODO: ask for a program to bind to this mimetype
+//		write in the config.h array.
+
+void Run(const char *filename, const char *application) {
+    execlp(application, application, filename, (char *)NULL);
+    perror("execlp");
+    exit(EXIT_FAILURE);
+}
+
+int main(int argc, char *argv[]) {
+
+	const char *filename = argv[1];
+		
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+
+    // Create magic library handle
+    magic_t magic = magic_open(MAGIC_MIME_TYPE);
+    if (magic == NULL) {
+        fprintf(stderr, "Unable to initialize magic library\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Load the default magic database
+    if (magic_load(magic, NULL) != 0) {
+        fprintf(stderr, "Cannot load magic database: %s\n", magic_error(magic));
+        magic_close(magic);
+        exit(EXIT_FAILURE);
+    }
+
+    // Get the MIME type of the file
+    const char *mime_type = magic_file(magic, filename);
+    if (mime_type == NULL) {
+        fprintf(stderr, "Cannot determine file type: %s\n", magic_error(magic));
+        magic_close(magic);
+        exit(EXIT_FAILURE);
+    }
+
+    // Find the associated application in the mapping
+    const char *application = NULL;
+    for (size_t i = 0; i < sizeof(fileTypes) / sizeof(FileTypeMapping); ++i) {
+        if (strcmp(fileTypes[i].file_type, mime_type) == 0) {
+            application = fileTypes[i].application;
+            break;
+        }
+    }
+
+    if (application != NULL) {
+        Run(filename, application);
+    } else {
+        fprintf(stderr, "No predefined application for file type %s\n", mime_type);
+    }
+
+    magic_close(magic);
+
+    return EXIT_SUCCESS;
+}
