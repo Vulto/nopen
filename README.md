@@ -6,32 +6,27 @@ C compiler
 magic library
 
 ## Installation
-
+```
 git clone https://github.com/Vulto/nopen.git
 cd nopen
 
-./c will build the executable
+./c build the executable
 ./c install (requires adjustment from doas to sudo)
-
+```
 ## Usage
-Execute nopen by providing the filename as a command-line argument
-
+```
 ./nopen <filename>
-If a predefined application is available for the file type, nopen will launch it.
+```
 
 ## Configuration
 Customize the config.h file to define file type mappings. Add entries for MIME types and their associated applications:
 // config.h
-
-typedef struct {
-    const char *file_type;
-    const char *application;
-} FileTypeMapping;
-
+```
 const FileTypeMapping fileTypes[] = {
     { "application/pdf", "evince" },
     // Add more mappings as needed
 };
+```
 
 ### Contributing
 Contribute to nopen by opening issues or submitting pull requests. Your feedback and enhancements are highly appreciated!
