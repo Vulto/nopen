@@ -6,8 +6,7 @@
 
 #include "config.h"
 
-//TODO: ask for a program to bind to this mimetype
-//		write in the config.h array.
+#define BUFFER_SIZE 1024
 
 void Run(const char *filename, const char *application) {
     execlp(application, application, filename, (char *)NULL);
@@ -16,14 +15,32 @@ void Run(const char *filename, const char *application) {
 }
 
 int main(int argc, char *argv[]) {
+    const char *filename;
 
-	const char *filename = argv[1];
-		
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
+    if (argc == 2) {
+        filename = argv[1];
+    } else if (argc == 1) {
+        char buffer[BUFFER_SIZE];
+        ssize_t bytesRead = read(STDIN_FILENO, buffer, sizeof(buffer));
+
+        if (bytesRead <= 0) {
+            fprintf(stderr, "Error reading from stdin\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Null-terminate the string
+        buffer[bytesRead] = '\0';
+
+        // Remove trailing newline character
+        if (bytesRead > 0 && buffer[bytesRead - 1] == '\n') {
+            buffer[bytesRead - 1] = '\0';
+        }
+
+        filename = buffer;
+    } else {
+        fprintf(stderr, "Usage: %s [filename]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
-
 
     // Create magic library handle
     magic_t magic = magic_open(MAGIC_MIME_TYPE);
