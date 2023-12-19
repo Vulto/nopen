@@ -10,8 +10,8 @@ magic library
 git clone https://github.com/Vulto/nopen.git
 cd nopen
 
-./c build the executable
-./c install (requires adjustment from doas to sudo)
+./c - build the executable
+./c install - (requires adjustment from doas to sudo)
 ```
 ## Usage
 ```
