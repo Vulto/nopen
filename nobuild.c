@@ -4,35 +4,42 @@
 #define SOURCE "nopen.c"
 #define BIN "nopen"
 #define CC "gcc"
-#define LIB "-lmagic" 
+#define LIB "-lmagic"
 #define DESTDIR "/usr/local/bin/"
 
-int posix_main(int argc, char *argv[]){
-    if (argc == 1){
-    	CMD(CC, "-o", BIN, SOURCE, LIB, NULL);
+int main(int argc, char *argv[]) {
+	GO_REBUILD_URSELF(argc, argv);
+
+	if (argc < 2) {
+		CMD(CC, "-o", BIN, SOURCE, LIB, NULL);
 		return EXIT_SUCCESS;
 	}
 
-    if (argc > 1){
-        if (strcmp(argv[1], "install") == 0){
-    		CMD(CC, "-o", BIN, SOURCE, LIB, NULL);
-			CMD("doas", "cp", BIN, DESTDIR BIN);
-        }else if (strcmp(argv[1], "remove") == 0){
-			CMD("doas", "rm", "-vi", DESTDIR"/"BIN);
-        }else if (strcmp(argv[1], "clean") == 0){
-			CMD("rm -vi", BIN);
-        }else{
-            PANIC("%s is unknown subcommand", argv[1]);
-        }
-    }
-    return EXIT_SUCCESS;
+	for (int i = 1; i < argc; i++) {
+		char *arg = argv[i];
+
+		if (arg[0] == '-') {
+			for (int j = 1; j < strlen(arg); j++) {
+
+				switch (arg[j]) {
+					case 'i':
+						CMD("doas", "cp", "-f", BIN, DESTDIR);
+						break;
+					case 'r':
+						CMD("doas", "rm", "-v", DESTDIR""BIN);
+						break;
+					case 'c':
+						CMD("rm -v", BIN);
+						break;
+					default:
+						PANIC("%s is unknown subcommand", arg);
+						break;
+				}
+			}
+		} else {
+			printf("Usage: %s [-i] [-r] [-c]\n", argv[0]);
+		}
+	}
+
+	return EXIT_SUCCESS;
 }
-
-int main(int argc, char *argv[]) {
-    GO_REBUILD_URSELF(argc, argv);
-
-	posix_main(argc, argv);
-
-    return EXIT_SUCCESS;
-}
-

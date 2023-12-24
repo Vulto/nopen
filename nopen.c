@@ -6,6 +6,8 @@
 
 #include "config.h"
 
+//TODO: free terminal after launch programs
+
 #define BUFFER_SIZE 1024
 
 void Run(const char *filename, const char *application) {
