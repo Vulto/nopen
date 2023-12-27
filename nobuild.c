@@ -6,6 +6,7 @@
 #define CC "gcc"
 #define LIB "-lmagic"
 #define DESTDIR "/usr/local/bin/"
+#define OLD "c.old"
 
 int main(int argc, char *argv[]) {
 	GO_REBUILD_URSELF(argc, argv);
@@ -29,7 +30,7 @@ int main(int argc, char *argv[]) {
 						CMD("doas", "rm", "-v", DESTDIR""BIN);
 						break;
 					case 'c':
-						CMD("rm -v", BIN);
+						CMD("rm", BIN, OLD, NULL);
 						break;
 					default:
 						PANIC("%s is unknown subcommand", arg);
@@ -37,7 +38,7 @@ int main(int argc, char *argv[]) {
 				}
 			}
 		} else {
-			printf("Usage: %s [-i] [-r] [-c]\n", argv[0]);
+			printf("Usage: %s [-i install] [-r remove] [-c clean]\n", argv[0]);
 		}
 	}
 
