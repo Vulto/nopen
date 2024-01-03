@@ -13,5 +13,6 @@ const FileTypeMapping fileTypes[] = {
 	{"inode/directory", "cd"},
 	{"application/octet-stream", "mednafen"},
 	{"application/pdf", "mupdf"},
-	{"application/x-n64-rom", "mupem64plus"},
+	{"application/x-n64-rom", "mupen64plus"},
+	{"application/javascript", "nvim"}
 };
