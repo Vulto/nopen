@@ -14,5 +14,8 @@ const FileTypeMapping fileTypes[] = {
 	{"application/octet-stream", "mednafen"},
 	{"application/pdf", "mupdf"},
 	{"application/x-n64-rom", "mupen64plus"},
-	{"application/javascript", "nvim"}
+	{"application/javascript", "nvim"},
+	{"image/png", "imv"},
+	{"image/jpg", "imv"},
+	{"image/jpeg", "imv"}
 };
