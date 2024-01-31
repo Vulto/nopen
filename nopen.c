@@ -57,16 +57,38 @@ void handleNoPredefinedApplication(const char *mime_type) {
     fprintf(stderr, "No predefined application for file type %s\n", mime_type);
 }
 
+void printMimeType(const char *filename, magic_t magic) {
+    const char *mime_type = getMimeType(filename, magic);
+    printf("MIME type for %s: %s\n", filename, mime_type);
+}
+
+void printUsage(const char *programName) {
+    fprintf(stderr, "Usage: %s [-d] [filename]\n", programName);
+    exit(EXIT_FAILURE);
+}
+
 int main(int argc, char *argv[]) {
     const char *filename;
+    int displayMimeType = 0; // Flag to indicate whether to display MIME type
 
-    if (argc == 2) {
-        filename = argv[1];
-    } else if (argc == 1) {
-        filename = readFilenameFromStdin();
+    // Parse command line arguments
+    int opt;
+    while ((opt = getopt(argc, argv, "d")) != -1) {
+        switch (opt) {
+            case 'd':
+                displayMimeType = 1;
+                break;
+            default:
+                printUsage(argv[0]);
+        }
+    }
+
+    if (optind < argc) {
+        filename = argv[optind];
+    } else if (displayMimeType) {
+        printUsage(argv[0]);
     } else {
-        fprintf(stderr, "Usage: %s [filename]\n", argv[0]);
-        exit(EXIT_FAILURE);
+        printUsage(argv[0]);
     }
 
     magic_t magic = magic_open(MAGIC_MIME_TYPE);
@@ -81,13 +103,17 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    const char *mime_type = getMimeType(filename, magic);
-    const char *application = findApplicationForFileType(mime_type);
-
-    if (application != NULL) {
-        runApplication(filename, application);
+    if (displayMimeType) {
+        printMimeType(filename, magic);
     } else {
-        handleNoPredefinedApplication(mime_type);
+        const char *mime_type = getMimeType(filename, magic);
+        const char *application = findApplicationForFileType(mime_type);
+
+        if (application != NULL) {
+            runApplication(filename, application);
+        } else {
+            handleNoPredefinedApplication(mime_type);
+        }
     }
 
     magic_close(magic);
