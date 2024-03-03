@@ -3,10 +3,14 @@
 #include <string.h>
 #include <magic.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "config.h"
 
 #define BUFFER_SIZE 1024
+
+const char *filename;
+bool displayMimeType = false;
 
 void runApplication(const char *filename, const char *application) {
     execlp(application, application, filename, (char *)NULL);
@@ -68,15 +72,12 @@ void printUsage(const char *programName) {
 }
 
 int main(int argc, char *argv[]) {
-    const char *filename;
-    int displayMimeType = 0; // Flag to indicate whether to display MIME type
 
-    // Parse command line arguments
     int opt;
     while ((opt = getopt(argc, argv, "d")) != -1) {
         switch (opt) {
             case 'd':
-                displayMimeType = 1;
+                displayMimeType = true;
                 break;
             default:
                 printUsage(argv[0]);
