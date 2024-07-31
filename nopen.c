@@ -7,18 +7,18 @@
 
 #include "config.h"
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 128
 
-const char *filename;
-bool displayMimeType = false;
+    const char *filename;
+    bool displayMimeType = false;
 
-void runApplication(const char *filename, const char *application) {
-    execlp(application, application, filename, (char *)NULL);
-    fprintf(stderr, "Could not find application %s", application);
+void Run(const char *filename, const char *prog) {
+    execlp(prog, prog, filename, (char *)NULL);
+    fprintf(stderr, "Could not find application %s", prog);
     exit(EXIT_FAILURE);
 }
 
-const char *readFilenameFromStdin() {
+const char *readFromStdin() {
     char buffer[BUFFER_SIZE];
     ssize_t bytesRead = read(STDIN_FILENO, buffer, sizeof(buffer));
 
@@ -46,18 +46,18 @@ const char *getMimeType(const char *filename, magic_t magic) {
     return mime_type;
 }
 
-const char *findApplicationForFileType(const char *mime_type) {
-    const char *application = NULL;
+const char *findProg(const char *mime_type) {
+    const char *prog = NULL;
     for (size_t i = 0; i < sizeof(fileTypes) / sizeof(FileTypeMapping); ++i) {
         if (strcmp(fileTypes[i].file_type, mime_type) == 0) {
-            application = fileTypes[i].application;
+            prog = fileTypes[i].application;
             break;
         }
     }
-    return application;
+    return prog;
 }
 
-void handleNoPredefinedApplication(const char *mime_type) {
+void handleNoProg(const char *mime_type) {
     fprintf(stderr, "No predefined application for file type %s\n", mime_type);
 }
 
@@ -108,12 +108,12 @@ int main(int argc, char *argv[]) {
         printMimeType(filename, magic);
     } else {
         const char *mime_type = getMimeType(filename, magic);
-        const char *application = findApplicationForFileType(mime_type);
+        const char *application = findProg(mime_type);
 
         if (application != NULL) {
-            runApplication(filename, application);
+            Run(filename, application);
         } else {
-            handleNoPredefinedApplication(mime_type);
+            handleNoProg(mime_type);
         }
     }
 

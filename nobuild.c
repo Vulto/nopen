@@ -7,6 +7,7 @@
 #define LIB "-lmagic"
 #define PREFIX "/usr/local/bin/"
 #define OLD "c.old"
+#define OBJ BIN
 
 void Compile(void) {
     CMD(CC, "-c", LIB, SOURCE);
