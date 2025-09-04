@@ -5,30 +5,27 @@
 #include <unistd.h>
 #include <stdbool.h>
 
-#include "config.h"
-
 #define BUFFER_SIZE 128
 
-    const char *filename;
-    bool displayMimeType = false;
+static const char *filename;
+static bool displayMimeType = false;
 
 void Run(const char *filename, const char *prog) {
-    execlp(prog, prog, filename, (char *)NULL);
-    fprintf(stderr, "Could not find application %s", prog);
+    execlp(prog, prog, filename, NULL);
+    fprintf(stderr, "Could not find application %s\n", prog);
     exit(EXIT_FAILURE);
 }
 
-const char *readFromStdin() {
+const char *readFromStdin(void) {
     char buffer[BUFFER_SIZE];
-    ssize_t bytesRead = read(STDIN_FILENO, buffer, sizeof(buffer));
-
+    ssize_t bytesRead = read(STDIN_FILENO, buffer, BUFFER_SIZE - 1);
+    
     if (bytesRead <= 0) {
         fprintf(stderr, "Error reading from stdin\n");
         exit(EXIT_FAILURE);
     }
 
     buffer[bytesRead] = '\0';
-
     if (bytesRead > 0 && buffer[bytesRead - 1] == '\n') {
         buffer[bytesRead - 1] = '\0';
     }
@@ -38,7 +35,7 @@ const char *readFromStdin() {
 
 const char *getMimeType(const char *filename, magic_t magic) {
     const char *mime_type = magic_file(magic, filename);
-    if (mime_type == NULL) {
+    if (!mime_type) {
         fprintf(stderr, "Cannot determine file type: %s\n", magic_error(magic));
         magic_close(magic);
         exit(EXIT_FAILURE);
@@ -46,19 +43,61 @@ const char *getMimeType(const char *filename, magic_t magic) {
     return mime_type;
 }
 
+typedef struct {
+    const char *file_type;
+    const char *application;
+} FileTypeMapping;
+
 const char *findProg(const char *mime_type) {
-    const char *prog = NULL;
-    for (size_t i = 0; i < sizeof(fileTypes) / sizeof(FileTypeMapping); ++i) {
+    const char *editor = getenv("NOPEN_EDITOR") ?: "nvim";
+    const char *imgv = getenv("NOPEN_IMGV") ?: "nsxiv";
+    const char *player = getenv("NOPEN_PLAYER") ?: "mpv";
+    const char *pdf = getenv("NOPEN_PDF") ?: "zathura";
+    const char *browser = getenv("NOPEN_BROWSER") ?: "surf";
+    const char *filemgr = getenv("NOPEN_FILEMGR") ?: "spf";
+    const char *audio = getenv("NOPEN_AUDIO") ?: "mpg123";
+    const char *wine = getenv("NOPEN_WINE") ?: "wine";
+    const char *bash = getenv("NOPEN_BASH") ?: "bash";
+
+    const FileTypeMapping fileTypes[] = {
+        {"text/plain", editor},
+        {"text/x-c", editor},
+        {"text/csv", editor},
+        {"text/x-makefile", editor},
+        {"text/x-shellscript", editor},
+        {"text/x-tex", editor},
+        {"text/html", editor},
+        {"x-www-browser", browser},
+        {"application/json", editor},
+        {"inode/x-empty", editor},
+        {"application/octet-stream", editor},
+        {"application/vnd.microsoft.portable-executable", wine},
+        {"application/javascript", editor},
+        {"inode/directory", filemgr},
+        {"video/mp4", player},
+        {"video/webm", player},
+        {"image/png", imgv},
+        {"image/jpg", imgv},
+        {"image/jpeg", imgv},
+        {"image/gif", imgv},
+        {"audio/x-wav", audio},
+        {"audio/mpeg", audio},
+        {"application/pdf", pdf},
+        {"application/x-executable", bash},
+        {"application/x-pie-executable", bash},
+    };
+
+    for (size_t i = 0; i < sizeof(fileTypes) / sizeof(fileTypes[0]); ++i) {
         if (strcmp(fileTypes[i].file_type, mime_type) == 0) {
-            prog = fileTypes[i].application;
-            break;
+            return fileTypes[i].application;
         }
     }
-    return prog;
+    return NULL;
 }
 
 void handleNoProg(const char *mime_type) {
     fprintf(stderr, "No predefined application for file type %s\n", mime_type);
+    exit(EXIT_FAILURE);
 }
 
 void printMimeType(const char *filename, magic_t magic) {
@@ -72,7 +111,6 @@ void printUsage(const char *programName) {
 }
 
 int main(int argc, char *argv[]) {
-
     int opt;
     while ((opt = getopt(argc, argv, "d")) != -1) {
         switch (opt) {
@@ -86,14 +124,14 @@ int main(int argc, char *argv[]) {
 
     if (optind < argc) {
         filename = argv[optind];
-    } else if (displayMimeType) {
+    } else if (!displayMimeType && isatty(STDIN_FILENO)) {
         printUsage(argv[0]);
     } else {
-        printUsage(argv[0]);
+        filename = readFromStdin();
     }
 
     magic_t magic = magic_open(MAGIC_MIME_TYPE);
-    if (magic == NULL) {
+    if (!magic) {
         fprintf(stderr, "Unable to initialize magic library\n");
         exit(EXIT_FAILURE);
     }
@@ -109,8 +147,7 @@ int main(int argc, char *argv[]) {
     } else {
         const char *mime_type = getMimeType(filename, magic);
         const char *application = findProg(mime_type);
-
-        if (application != NULL) {
+        if (application) {
             Run(filename, application);
         } else {
             handleNoProg(mime_type);
@@ -118,6 +155,5 @@ int main(int argc, char *argv[]) {
     }
 
     magic_close(magic);
-
     return EXIT_SUCCESS;
 }

@@ -1,28 +1,28 @@
 #define NOBUILD_IMPLEMENTATION
 #include "./nobuild.h"
 
-#define SOURCE "nopen.c"
+#define SOURCE "main.c"
 #define BIN "nopen"
-#define CC "gcc"
+#define CC "clang"
 #define LIB "-lmagic"
 #define PREFIX "/usr/local/bin/"
 #define OLD "c.old"
-#define OBJ BIN
+#define OBJ "main.o"
 
 void Compile(void) {
     CMD(CC, "-c", LIB, SOURCE);
 }
 
 void Link(void) {
-    CMD(CC, "-o", BIN, "nopen.o", LIB, NULL);
+    CMD(CC, "-o", BIN, OBJ, LIB, NULL);
 }
 
 void Install(void) {
-    CMD("doas", "cp", "-f", BIN, PREFIX);
+    CMD("sudo", "cp", "-f", BIN, PREFIX);
 }
 
 void Wipe(void) {
-    CMD("doas", "rm", "-v", PREFIX""BIN);
+    CMD("sudo", "rm", "-v", PREFIX""BIN);
     CMD("rm", BIN, "c.old");
 }
 
