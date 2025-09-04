@@ -10,7 +10,7 @@
 #define OBJ "main.o"
 
 void Compile(void) {
-    CMD(CC, "-c", LIB, SOURCE);
+    CMD(CC, "-c", SOURCE);
 }
 
 void Link(void) {
