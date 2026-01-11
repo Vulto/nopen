@@ -10,8 +10,8 @@ magic library
 git clone https://github.com/Vulto/nopen.git
 cd nopen
 
-./c - build the executable
-./c install - (requires adjustment from doas to sudo)
+./c -c (Compiles) -l (Link) -i (install)
+./c -cli at once is what you need to make it compile, link and install
 ```
 ## Usage
 ```
@@ -20,7 +20,7 @@ cd nopen
 
 ## Configuration
 Customize the config.h file to define file type mappings. Add entries for MIME types and their associated applications:
-// config.h
+// main.c
 ```
 const FileTypeMapping fileTypes[] = {
     { "application/pdf", "evince" },

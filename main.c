@@ -1,33 +1,52 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <magic.h>
-#include <unistd.h>
-#include <stdbool.h>
+/*
+ * nopen - small file opener based on MIME type (Unix-specific)
+ * Uses: libmagic, execvp, isatty, environment variables
+ * Not portable to Windows or non-POSIX systems
+ */
 
-#define BUFFER_SIZE 128
+#include "config.h"
+
+#define BUFFER_SIZE 4096  // Fixed size; PATH_MAX can be unreliable in strict modes
 
 static const char *filename;
 static bool displayMimeType = false;
 
-void Run(const char *filename, const char *prog) {
-    execlp(prog, prog, filename, NULL);
-    fprintf(stderr, "Could not find application %s\n", prog);
+[[noreturn]] static void Run(const char *filename, const char *prog) {
+    const char *argv[] = {prog, filename, NULL};
+    execvp(prog, (char *const *)argv);
+    perror("execvp");
+    fprintf(stderr, "Could not execute %s\n", prog);
+    exit(EXIT_FAILURE);
+}
+
+[[noreturn]] static void fail(const char *msg) {
+    perror(msg);
     exit(EXIT_FAILURE);
 }
 
 const char *readFromStdin(void) {
     char buffer[BUFFER_SIZE];
-    ssize_t bytesRead = read(STDIN_FILENO, buffer, BUFFER_SIZE - 1);
-    
-    if (bytesRead <= 0) {
-        fprintf(stderr, "Error reading from stdin\n");
+    size_t total = 0;
+    ssize_t bytesRead;
+
+    do {
+        bytesRead = read(STDIN_FILENO, buffer + total, BUFFER_SIZE - total - 1);
+        if (bytesRead < 0) fail("read");
+        total += (size_t)bytesRead;
+    } while (bytesRead > 0 && total < BUFFER_SIZE - 1);
+
+    if (total >= BUFFER_SIZE - 1) {
+        fprintf(stderr, "Input path too long (max %d bytes)\n", BUFFER_SIZE - 1);
         exit(EXIT_FAILURE);
     }
 
-    buffer[bytesRead] = '\0';
-    if (bytesRead > 0 && buffer[bytesRead - 1] == '\n') {
-        buffer[bytesRead - 1] = '\0';
+    buffer[total] = '\0';
+    buffer[strcspn(buffer, "\n")] = '\0';
+
+    // Basic security: refuse absolute paths and parent dir traversal from stdin
+    if (buffer[0] == '/' || strstr(buffer, "..")) {
+        fprintf(stderr, "Refusing potentially unsafe path from stdin: %s\n", buffer);
+        exit(EXIT_FAILURE);
     }
 
     return strdup(buffer);
@@ -36,76 +55,15 @@ const char *readFromStdin(void) {
 const char *getMimeType(const char *filename, magic_t magic) {
     const char *mime_type = magic_file(magic, filename);
     if (!mime_type) {
-        fprintf(stderr, "Cannot determine file type: %s\n", magic_error(magic));
+        fprintf(stderr, "magic_file failed: %s\n", magic_error(magic));
         magic_close(magic);
         exit(EXIT_FAILURE);
     }
     return mime_type;
 }
 
-typedef struct {
-    const char *file_type;
-    const char *application;
-} FileTypeMapping;
 
-const char *findProg(const char *mime_type) {
-    const char *editor = getenv("NOPEN_EDITOR") ?: "nvim";
-    const char *imgv = getenv("NOPEN_IMGV") ?: "nsxiv";
-    const char *player = getenv("NOPEN_PLAYER") ?: "mpv";
-    const char *pdf = getenv("NOPEN_PDF") ?: "zathura";
-    const char *browser = getenv("NOPEN_BROWSER") ?: "surf";
-    const char *filemgr = getenv("NOPEN_FILEMGR") ?: "spf";
-    const char *audio = getenv("NOPEN_AUDIO") ?: "mpg123";
-    const char *wine = getenv("NOPEN_WINE") ?: "wine";
-    const char *bash = getenv("NOPEN_BASH") ?: "bash";
-
-    const FileTypeMapping fileTypes[] = {
-        {"text/plain", editor},
-        {"text/x-c", editor},
-        {"text/csv", editor},
-        {"text/x-makefile", editor},
-        {"text/x-shellscript", editor},
-        {"text/x-tex", editor},
-        {"text/html", editor},
-        {"x-www-browser", browser},
-        {"application/json", editor},
-        {"inode/x-empty", editor},
-        {"application/octet-stream", editor},
-        {"application/vnd.microsoft.portable-executable", wine},
-        {"application/javascript", editor},
-        {"inode/directory", filemgr},
-        {"video/mp4", player},
-        {"video/webm", player},
-        {"image/png", imgv},
-        {"image/jpg", imgv},
-        {"image/jpeg", imgv},
-        {"image/gif", imgv},
-        {"audio/x-wav", audio},
-        {"audio/mpeg", audio},
-        {"application/pdf", pdf},
-        {"application/x-executable", bash},
-        {"application/x-pie-executable", bash},
-    };
-
-    for (size_t i = 0; i < sizeof(fileTypes) / sizeof(fileTypes[0]); ++i) {
-        if (strcmp(fileTypes[i].file_type, mime_type) == 0) {
-            return fileTypes[i].application;
-        }
-    }
-    return NULL;
-}
-
-void handleNoProg(const char *mime_type) {
-    fprintf(stderr, "No predefined application for file type %s\n", mime_type);
-    exit(EXIT_FAILURE);
-}
-
-void printMimeType(const char *filename, magic_t magic) {
-    const char *mime_type = getMimeType(filename, magic);
-    printf("MIME type for %s: %s\n", filename, mime_type);
-}
-
-void printUsage(const char *programName) {
+[[noreturn]] static void printUsage(const char *programName) {
     fprintf(stderr, "Usage: %s [-d] [filename]\n", programName);
     exit(EXIT_FAILURE);
 }
@@ -131,10 +89,7 @@ int main(int argc, char *argv[]) {
     }
 
     magic_t magic = magic_open(MAGIC_MIME_TYPE);
-    if (!magic) {
-        fprintf(stderr, "Unable to initialize magic library\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!magic) fail("magic_open");
 
     if (magic_load(magic, NULL) != 0) {
         fprintf(stderr, "Cannot load magic database: %s\n", magic_error(magic));
@@ -143,17 +98,35 @@ int main(int argc, char *argv[]) {
     }
 
     if (displayMimeType) {
-        printMimeType(filename, magic);
+        const char *mime_type = getMimeType(filename, magic);
+        printf("MIME type for %s: %s\n", filename, mime_type);
     } else {
         const char *mime_type = getMimeType(filename, magic);
         const char *application = findProg(mime_type);
-        if (application) {
-            Run(filename, application);
+
+        char mime_lower[256];
+        strncpy(mime_lower, mime_type, sizeof(mime_lower) - 1);
+        mime_lower[sizeof(mime_lower) - 1] = '\0';
+        for (char *p = mime_lower; *p; p++)
+            *p = (char)tolower((unsigned char)*p);
+
+        if (strcmp(mime_lower, "application/x-executable") == 0 ||
+            strcmp(mime_lower, "application/x-pie-executable") == 0) {
+            const char *argv[] = {filename, NULL};
+            execvp(filename, (char *const *)argv);
+            perror("execvp");
+            fprintf(stderr, "Could not execute %s\n", filename);
+            exit(EXIT_FAILURE);
         } else {
-            handleNoProg(mime_type);
+            Run(filename, application);
         }
     }
 
     magic_close(magic);
+
+    if (optind >= argc && !isatty(STDIN_FILENO)) {
+        free((void *)filename);
+    }
+
     return EXIT_SUCCESS;
 }
