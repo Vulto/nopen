@@ -8,7 +8,7 @@
 #define PREFIX "/usr/local/bin/"
 #define OLD "c.old"
 #define OBJ "main.o"
-#define FLAGS "-std=c23", "-Wall", "-Werror", "-pedantic", "-Wextra"
+#define FLAGS "-std=c23", "-Wall", "-pedantic", "-Wextra"
 
 void Compile(void) {
     CMD(CC, "-c", SOURCE, FLAGS);

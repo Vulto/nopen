@@ -12,11 +12,47 @@ static const char *filename;
 static bool displayMimeType = false;
 
 [[noreturn]] static void Run(const char *filename, const char *prog) {
-    const char *argv[] = {prog, filename, NULL};
+    const char *argv[] = { prog, filename, NULL };
+
+    /* Match by both full path and basename */
+    const char *base = prog;
+    const char *slash = strrchr(prog, '/');
+    if (slash && slash[1]) base = slash + 1;
+
+    /* Look up interface (enum) from fileTypes[]; stop at sentinel (application==NULL) */
+    bool is_gui = false;
+    for (size_t i = 0; fileTypes[i].application != NULL; ++i) {
+        const char *app = fileTypes[i].application;
+        if (strcmp(app, prog) == 0 || strcmp(app, base) == 0) {
+            /* interface is an enum; compare against GUI constant */
+            if (fileTypes[i].interface == GUI) {
+                is_gui = true;
+            }
+            break;
+        }
+    }
+
+    /* GUI: detach when attached to a terminal; TUI or unknown: run foreground */
+    if (is_gui && (isatty(STDIN_FILENO) || isatty(STDOUT_FILENO) || isatty(STDERR_FILENO))) {
+        pid_t pid = fork();
+        if (pid < 0) { perror("fork"); _exit(EXIT_FAILURE); }
+        if (pid > 0) { _exit(EXIT_SUCCESS); }  /* parent exits, freeing the shell */
+
+        if (setsid() < 0) { /* best-effort */ }
+
+        pid = fork();
+        if (pid < 0) { _exit(EXIT_FAILURE); }
+        if (pid > 0) { _exit(EXIT_SUCCESS); }  /* first child exits */
+
+        /* Detach stdio (C23-friendly) */
+        (void)freopen("/dev/null", "r", stdin);
+        (void)freopen("/dev/null", "w", stdout);
+        (void)freopen("/dev/null", "w", stderr);
+    }
+
     execvp(prog, (char *const *)argv);
     perror("execvp");
-    fprintf(stderr, "Could not execute %s\n", prog);
-    exit(EXIT_FAILURE);
+    _exit(EXIT_FAILURE);
 }
 
 [[noreturn]] static void fail(const char *msg) {

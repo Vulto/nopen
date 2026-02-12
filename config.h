@@ -9,68 +9,59 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-const char *findProg(const char *mime_type) {
-    char mime_lower[256];
-    strncpy(mime_lower, mime_type, sizeof(mime_lower) - 1);
-    mime_lower[sizeof(mime_lower) - 1] = '\0';
-    for (char *p = mime_lower; *p; p++)
-        *p = (char)tolower((unsigned char)*p);
+#define editor  "nvim"
+#define imgv  "nsxiv"
+#define player  "mpv"
+#define pdf  "zathura"
+#define browser  "surf"
+#define filemgr  "cfl"
+#define audio  "mpg123"
+#define wine  "wine"
+#define bash  "bash"
 
-    const char *editor = getenv("NOPEN_EDITOR");
-    if (!editor) editor = "nvim";
-
-    const char *imgv = getenv("NOPEN_IMGV");
-    if (!imgv) imgv = "nsxiv";
-
-    const char *player = getenv("NOPEN_PLAYER");
-    if (!player) player = "mpv";
-
-    const char *pdf = getenv("NOPEN_PDF");
-    if (!pdf) pdf = "zathura";
-
-    const char *browser = getenv("NOPEN_BROWSER");
-    if (!browser) browser = "surf";
-
-    const char *filemgr = getenv("NOPEN_FILEMGR");
-    if (!filemgr) filemgr = "spf";
-
-    const char *audio = getenv("NOPEN_AUDIO");
-    if (!audio) audio = "mpg123";
-
-    const char *wine = getenv("NOPEN_WINE");
-    if (!wine) wine = "wine";
-
-    const char *bash = getenv("NOPEN_BASH");
-    if (!bash) bash = "bash";
+	typedef enum {
+		TUI,
+		GUI,
+	} type;
 
     const struct {
         const char *file_type;
         const char *application;
+        type interface;
     } fileTypes[] = {
-        {"text/plain",                      editor},
-        {"text/x-c",                        editor},
-        {"text/csv",                        editor},
-        {"text/x-makefile",                 editor},
-        {"text/x-shellscript",              bash},
-        {"text/x-tex",                      editor},
-        {"text/html",                       editor},
-        {"x-www-browser",                   browser},
-        {"application/json",                editor},
-        {"inode/x-empty",                   editor},
-        {"application/octet-stream",        editor},
-        {"application/vnd.microsoft.portable-executable", wine},
-        {"application/javascript",          editor},
-        {"inode/directory",                 filemgr},
-        {"video/mp4",                       player},
-        {"video/webm",                      player},
-        {"image/png",                       imgv},
-        {"image/jpg",                       imgv},
-        {"image/jpeg",                      imgv},
-        {"image/gif",                       imgv},
-        {"audio/x-wav",                     audio},
-        {"audio/mpeg",                      audio},
-        {"application/pdf",                 pdf},
+        {"text/plain",                      editor, TUI},
+        {"text/x-c",                        editor, TUI},
+        {"text/csv",                        editor, TUI},
+        {"text/x-makefile",                 editor, TUI},
+        {"text/x-shellscript",              bash, TUI},
+        {"text/x-tex",                      editor, TUI},
+        {"text/html",                       browser, GUI},
+        {"x-www-browser",                   browser, GUI},
+        {"application/json",                editor, TUI},
+        {"inode/x-empty",                   editor, TUI},
+        {"application/octet-stream",        editor, TUI},
+        {"application/javascript",          editor, TUI},
+        {"inode/directory",                 filemgr, TUI},
+        {"video/mp4",                       player, GUI},
+        {"video/webm",                      player, GUI},
+        {"image/png",                       imgv, GUI},
+        {"image/jpg",                       imgv, GUI},
+        {"image/jpeg",                      imgv, GUI},
+        {"image/gif",                       imgv, GUI},
+        {"image/webpg",                     imgv, GUI},
+        {"audio/x-wav",                     audio, TUI},
+        {"audio/mpeg",                      audio, TUI},
+        {"application/pdf",									pdf, GUI},
+        {"application/vnd.microsoft.portable-executable",	wine, GUI},
     };
+const char *findProg(const char *mime_type) {
+    char mime_lower[256];
+    strncpy( mime_lower, mime_type, sizeof( mime_lower ) - 1);
+    mime_lower[sizeof( mime_lower ) - 1] = '\0';
+    for ( char *p = mime_lower; *p; p++ )
+        *p = ( char )tolower(( unsigned char ) *p );
+
+   
 
     for (size_t i = 0; i < sizeof(fileTypes) / sizeof(fileTypes[0]); ++i) {
         if (strcmp(fileTypes[i].file_type, mime_lower) == 0) {
